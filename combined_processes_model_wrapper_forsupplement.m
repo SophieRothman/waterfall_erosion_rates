@@ -116,8 +116,11 @@ Wtl_nowf=NaN( length(Names), length(Qg_k));
 Qflood_nowftl=NaN( length(Names), length(Qg_k));
 Qsc_pool=NaN( length(Names), length(Qg_k));
 Names=categorical(Names);
+
 %% Setting up function parameters - Here we want to calculate erosion at each waterfall and then 
-% CURRENTLY!!! it is using the qs/qsc ratio from total load 1 yr sediment in a 10 yr
+%NOW USING tl width as Tailwater depth
+
+% Using the qs/qsc ratio from total load 1 yr sediment in a 10 yr
 % flood then applying that qsqsc to the total load for the other floods and
 % then using that sediment discharge
 
@@ -145,7 +148,6 @@ for ii=1:length(Names) %which site
                     %reaches]
     r_poold = radius(ii); %Pool radius (m)
     
-    If=.01; %Intermittancy factorn
     W_brink=W(ii); %Width at wf lip
     equ=width_equ(ii, 2:3);
 
@@ -155,11 +157,11 @@ for ii=1:length(Names) %which site
         If_s=If_sed(n);
 
         [Etl_nowf( ii, n),   Htl_nowf( ii, n), Wtl_nowf(ii, n), Qflood_nowftl(ii, n), qsc_tl(ii, n), qs_tl(ii,n)]=...
-                only_tl_sites(Slope, Qg, If,  A, A_gage, E_d, D_50, D_85, If_s, equ, qsqsc);
+                only_tl_sites(Slope,  Width,  Qg, If,  A, A_gage, E_d, D_50, D_85, If_s, equ, qsqsc);
 
         [E_vert_inst_arrayd(ii, n),  E_lat_inst_arrayd( ii, n), ...
-        Etl_distd( ii, n), Htl( ii, n), Hbrink(  ii, n), If, Qflood(ii, n),  r_jet( ii, n),  Width_tl( ii, n),  Widthbrink( ii, n),  qs_all(ii, n)]=...
-        all_erosion_sites(Slope_np, S_poold,  Qg, If, h_brd, H_dropd, r_poold, A, A_gage, E_d, D_50, D_85, If_s, equ, qs_tl(ii,n));
+        Etl_distd( ii, n), Htl( ii, n), Hbrink(  ii, n),  h_TW(  ii, n), If, Qflood(ii, n),  r_jet( ii, n),  Width_tl( ii, n),  Widthbrink( ii, n),  qs_all(ii, n)]=...
+        all_erosion_sites(Slope_np, S_poold, Width, W_brink, Qg, If, h_brd, H_dropd, r_poold, A, A_gage, E_d, D_50, D_85, If_s, equ, qs_tl(ii,n));
 
         %Qsc_pool(ii, n) = Qsc_pool_public(r_poold, Qflood(ii,n), h_brd, H_dropd, Widthbrink(ii,n), D_50, Hbrink(ii,n), ...
         %100, 100);
@@ -196,6 +198,8 @@ end
 %     end
 
 %end
+Utl=Qflood./(Width_tl.*Htl);
+Fr_tl=Utl./((9.8.*Htl).^0.5);
 
 %% integrating across discharges
 E_vert_inst_array_if=E_vert_inst_arrayd;
@@ -209,9 +213,8 @@ for ijk=1:length(E_vert_inst_arrayd(1, :))
     E_lat_inst_array_if( :, ijk)=E_lat_inst_arrayd( :, ijk).*Ifyearly(ijk)./If_sed(ijk);
     Etl_if( :, ijk)=Etl_distd( :, ijk).*Ifyearly(ijk)./If_sed(ijk);
     Etl_ifnowf(:, ijk)=Etl_nowf( :, ijk).*Ifyearly(ijk)./If_sed(ijk);
-
-
 end
+
 %E_vert_tot_perwf=sum(E_vert_inst_array_if, 2, 'omitnan');
 %E_lat_tot_perwf=sum(E_lat_inst_array_if, 2, 'omitnan');
 %Etl_brink_tot_perwf=sum(Etl_brink_if, 2, 'omitnan');
@@ -316,9 +319,9 @@ tl_weighted=NaN(length(W(:,1)), length(Names) );
 length_tl=NaN(length(Names), 1);
 for i=1:length(Names)
     for j=1:length(E_vert_inst_array_if(1,:))
-        Etot(i, 1, j)=E_vert_inst_array_if(i, j)*wf_freq(i)*radius(i)*2;
-        Etot(i, 2, j)=E_lat_inst_array_if(i, j)*wf_freq(i)*depth(i)*2;
-        Etot(i, 3, j)=Etl_if(i, j)*length_np(i);
+        Etot(i, 1, j)=(E_vert_inst_array_if(i, j)*wf_freq(i)*radius(i)*2)./length_ch(i);
+        Etot(i, 2, j)=(E_lat_inst_array_if(i, j)*wf_freq(i)*depth(i)*2)./length_ch(i);
+        Etot(i, 3, j)=(Etl_if(i, j)*length_np(i))./length_ch(i);
         Enowf(i, j)=Etl_ifnowf(i, j)*length_ch(i);
 
 %     length_tl(i)=Reach_len(i)-(sum(poolrad(:,i), 'omitnan')*2);
@@ -340,21 +343,24 @@ types={'2 yr flood'
     '10 yr flood'
     '15 yr flood'
     '25 yr flood'};
-for j=1:length(E_vert_inst_array_if(1,:))
-    figure
-    bar(Etot(:,:,j), 'grouped')
-    xticklabels(Names)
-    
-    legend(Ecat1)
-    title(types(j))
-    hold off
-end
+% for j=1:length(E_vert_inst_array_if(1,:))
+%     figure
+%     bar(Etot(:,:,j)./length_ch(j), 'grouped')
+%     xticklabels(Names)
+%     
+%     legend(Ecat1)
+%     title(types(j))
+%     hold off
+% end
+
+
 
 %% combining for sitewide predictions
 Esite=NaN(length(Names), 1);
 for i=1:length(Names)
     for j=1:length(E_vert_inst_array_if(1,:))
         Esite(i, j)=sum(Etot(i, :, j), 'all', 'omitnan');
+        Esite_wfonly(i, j)=sum(Etot(i, 1:2, j), 'all', 'omitnan');
     end
 end
 
@@ -370,17 +376,18 @@ end
 Esite_point=NaN(length(Names), length(E_vert_inst_array_if(1,:)));
 for i=1:length(Names)
     for j=1:length(E_vert_inst_array_if(1,:))
-        Esite_point(i, j)=Esite(i, j)/length_ch(i);
+        Esite_point(i, j)=Esite(i, j);
+        Esite_point_wfonly(i, j)=Esite_wfonly(i, j);
     end
 end
 
-for j=1:length(E_vert_inst_array_if(1,:))
-    figure
-    bar(Esite_point(:,j))
-    xticklabels(Names)
-    ylabel('total erosion at a point')
-    title(types(j))
-end
+% for j=1:length(E_vert_inst_array_if(1,:))
+%     figure
+%     bar(Esite_point(:,j))
+%     xticklabels(Names)
+%     ylabel('total erosion at a point')
+%     title(types(j))
+% end
 
 %% current erosion estimates
 % e_data=[195
@@ -394,666 +401,254 @@ end
 % 172
 % 99.9
 % ];
+Names={'MFK21-06'
+'MFK21-04'
+'MFK21-11'
+'MFK22-02'
+'MFK21-09'
+'DNK21-06'
+'DNK22-01'
+'DNK22-02'
+'DNK21-0304'
+'DNK22-03'};
+
 e_data=[172
     72.6
     258
     351
     159
-    51.1
-    39.8
+    49.6
+    39.2
     85
     154
     90.8]; %updated rates, taking into account topographic shielding, water shielding, and slope shielding
+
+error=[10.200142
+4.30003
+15.200389
+36.9
+14.1
+2.95000513
+3.198
+6.93
+9.080124
+8.96];
+
+
 e_data=e_data./1000;
 for j=1:length(E_vert_inst_array_if(1,:))
     figure
     scatter(e_data, Esite_point(:,j))
+    %hold on
+    %scatter(e_data, Esite_point_wfonly(:,j))
     xlabel(' measured erosion rate (mm/yr)')
     ylabel('predicted erosion rate (mm/yr')
+    legend('full model', 'wf only')
     title(types(j))
 end
 
 %% pure waterfall and total load comparison
-
-for j=1:length(E_vert_inst_array_if(1,:))
-    figure
-    scatter(e_data, E_vert_inst_array_if(:, j))
-    xlabel(' measured erosion rate (mm/yr)')
-    ylabel('predicted erosion rate (mm/yr')
-    %text(.25,2e4,'waterfall vertical erosion')
-    title(types(j), 'waterfall vertical erosion at a point')
-
-    figure
-    scatter(e_data, (E_vert_inst_array_if(:, j)+E_lat_inst_array_if(:, j)))
-    xlabel(' measured erosion rate (mm/yr)')
-    ylabel('predicted erosion rate (mm/yr')
-    title(types(j), 'waterfall vertical and lateral erosion')
-
-    figure
-    scatter(e_data, Etl_ifnowf(:,j))
-    xlabel(' measured erosion rate (mm/yr)')
-    ylabel('predicted erosion rate (mm/yr')
-    title(types(j), 'pure total load')
-end
+% 
+% for j=1:length(E_vert_inst_array_if(1,:))
+%     figure
+%     scatter(e_data, E_vert_inst_array_if(:, j))
+%     xlabel(' measured erosion rate (mm/yr)')
+%     ylabel('predicted erosion rate (mm/yr')
+%     %text(.25,2e4,'waterfall vertical erosion')
+%     title(types(j), 'waterfall vertical erosion at a point')
+% 
+%     figure
+%     scatter(e_data, (E_vert_inst_array_if(:, j)+E_lat_inst_array_if(:, j)))
+%     xlabel(' measured erosion rate (mm/yr)')
+%     ylabel('predicted erosion rate (mm/yr')
+%     title(types(j), 'waterfall vertical and lateral erosion')
+% 
+%     figure
+%     scatter(e_data, Etl_ifnowf(:,j))
+%     xlabel(' measured erosion rate (mm/yr)')
+%     ylabel('predicted erosion rate (mm/yr')
+%     title(types(j), 'pure total load')
+% end
 %% looking at qs/qsc
 for i=1:length(e_data)
     for j=1:length(Q_gage(1,:))
-        qsqsc_pool(i,j)=qs_all(i,j)/Qsc_pool(i,j);
-        qsqsc_tl(i,j)=qs_all(i,j)/qsc_tl(i,j);
+        %qsqsc_pool(i,j)=qs_all(i,j)/Qsc_pool(i,j);
+        qsqsc_tl(i,j)=qs_tl(i,j)/qsc_tl(i,j); %qsc_tl(ii, n), qs_tl(ii,n)
     end
 end
 
 
 %% normalized wf erosion rate v waterfall frequency
 e_data_norm=NaN(length(e_data));
-e_data_norm(1:5)=e_data(1:5)./90;
-e_data_norm(6:10)=e_data(6:10)./30;
-wf_freq=[7
-1
-7
-8
-5
-2
-4
-6
-7
-3];
+e_data_norm(1:5)=e_data(1:5)./92.24;
+e_data_norm(6:10)=e_data(6:10)./32.17;
+
 figure
 scatter(wf_freq, e_data_norm)
-xlabel('Normalized erosion rates')
-ylabel('Wf occurence')
-%% 
-figure
-subplot(3, 2, 5)
-scatter(e_data, Esite_point(:,3))
-hold on
-plot([.01, max(Esite_point(:,3))],[.01, max(Esite_point(:,3))] )
-hold off
-r=corrcoef(e_data, Esite_point(:,3));
-xlabel(' measured erosion rate (mm/yr)')
-ylabel('predicted erosion rate (mm/yr')
-title(['c) Combined model, corr=' num2str(r(1,2))])
-xlim([0,max(Esite_point(:,3))])
-ylim([0,max(Esite_point(:,3))])
+ylabel('Normalized erosion rates')
+xlabel('Wf occurence')
 
-subplot(3,2, 1)
-scatter(e_data, Etl_ifnowf(:,3))
-hold on
-plot([.01, max(Etl_ifnowf(:,3))],[.01, max(Etl_ifnowf(:,3))] )
-hold off
-r=corrcoef(e_data, Etl_ifnowf(:,3));
-%xlabel(' measured erosion rate (mm/yr)')
-ylabel('predicted erosion rate (mm/yr')
-title(['a) Total load only, corr=' num2str(r(1,2))])
-xlim([0,max(Etl_ifnowf(:,3))])
-ylim([0,max(Etl_ifnowf(:,3))])
-
-subplot(3,2, 3)
-scatter(e_data, (E_vert_inst_array_if(:, 3)+E_lat_inst_array_if(:, 3)))
-hold on
-plot([.01, max((E_vert_inst_array_if(:, 3)+E_lat_inst_array_if(:, 3)))],[.01, max((E_vert_inst_array_if(:, 3)+E_lat_inst_array_if(:, 3)))] )
-hold off
-r=corrcoef(e_data, (E_vert_inst_array_if(:, 3)+E_lat_inst_array_if(:, 3)));
-%xlabel(' measured erosion rate (mm/yr)')
-ylabel('predicted erosion rate (mm/yr')
-title(['b) wf vert and lat, corr=' num2str(r(1,2))])
-xlim([0,max((E_vert_inst_array_if(:, 3)+E_lat_inst_array_if(:, 3)))])
-ylim([0,max((E_vert_inst_array_if(:, 3)+E_lat_inst_array_if(:, 3)))])
-
-subplot(3, 2, 6)
-scatter(e_data, Esite_point(:,5))
-hold on
-plot([.01, max(Esite_point(:,5))],[.01, max(Esite_point(:,5))] )
-hold off
-r=corrcoef(e_data, Esite_point(:,5));
-xlabel(' measured erosion rate (mm/yr)')
-%ylabel('predicted erosion rate (mm/yr')
-title(['f) Combined model, corr=' num2str(r(1,2))])
-xlim([0,max(Esite_point(:,5))])
-ylim([0,max(Esite_point(:,5))])
-
-subplot(3,2, 2)
-scatter(e_data, Etl_ifnowf(:,5))
-hold on
-plot([.01, max(Etl_ifnowf(:,5))],[.01, max(Etl_ifnowf(:,5))] )
-hold off
-r=corrcoef(e_data, Etl_ifnowf(:,5));
-%xlabel(' measured erosion rate (mm/yr)')
-%ylabel('predicted erosion rate (mm/yr')
-title(['d) Total load only, corr=' num2str(r(1,2))])
-xlim([0,max(Etl_ifnowf(:,5))])
-ylim([0,max(Etl_ifnowf(:,5))])
-
-subplot(3,2, 4)
-r=corrcoef(e_data, (E_vert_inst_array_if(:, 5)+E_lat_inst_array_if(:, 5)));
-scatter(e_data, (E_vert_inst_array_if(:, 5)+E_lat_inst_array_if(:, 5)))
-hold on
-plot([.01, max(E_vert_inst_array_if(:, 5)+E_lat_inst_array_if(:, 5))],[.01, max(E_vert_inst_array_if(:, 5)+E_lat_inst_array_if(:, 5))] )
-hold off
-%xlabel(' measured erosion rate (mm/yr)')
-%ylabel('predicted erosion rate (mm/yr')
-title(['e) wf vert and lat, corr=' num2str(r(1,2))])
-xlim([0,max((E_vert_inst_array_if(:, 5)+E_lat_inst_array_if(:, 5)))])
-ylim([0,max((E_vert_inst_array_if(:, 5)+E_lat_inst_array_if(:, 5)))])
-
-
-%% normalizing
-Enormbysite=Esite./Enowf;
-
-figure
-bar(Enormbysite)
-xticklabels(Names)
-ylabel('normalized erosion')
-
-
-%% 
 
 %%
-%normalized erosion rates
-%Esite_norm_dink=Esite(2:5)/Esite(1);
 figure
 
-plot([1,2,4,8], Esite_norm_kaw, '-o')
-hold on
-plot([1,2,4,8], Esite_norm_dink, '-o')
+h = tiledlayout(2,1, 'TileSpacing', 'tight', 'Padding', 'compact');
+nexttile
+%box on
+%fitobj=fitlm(e_data(1:10), Esite_point(1:10, 3), "Exclude",8)
+%plot([0, 2], [fitobj.Coefficients{1, 'Estimate'}, 2*fitobj.Coefficients{2, 'Estimate'}+fitobj.Coefficients{1, 'Estimate'}])
+
+%errorbar(Esite_point(1:5, 3), e_data(1:5), error(1:5)./1000, 'k-','LineStyle','none')
 %hold on
-% plot([1,2,4,8], Esite_norm7, '-o')
+
+errorbar( e_data(1:5), Esite_point(1:5, 3),error(1:5)./1000,'horizontal','ks', 'markerFaceColor', [0.4118    0.7804    0.9412],'LineStyle','none', 'MarkerSize', 6, 'Markeredgecolor', 'k')
+hold on
+errorbar(e_data(6:10),Esite_point(6:10, 3), error(6:10)./1000,'horizontal','ko', 'markerFaceColor', [0.8118    0.4118    0.7059], 'LineStyle','none', 'MarkerSize', 6, 'Markeredgecolor', 'k')
+plot([0, 0.9], [0,0.9],  'k--')
+plot([0, 0.9], [0,3.2],  '--')
+hold on
+
+xlabel('Channel averaged erosion rate (mm/yr)')
+ylabel('Combined model prediction (mm/yr)')
+legend('MFK', 'Dinkey Creek', '1:1')
+%ylabel('Combined model prediction (mm/yr)')
+xlim([0,0.4])
+ylim([0, .4])
+%box off
+
+nexttile
+
+errorbar(e_data(1:10),E_vert_inst_array_if(:, 2),error(1:10)./1000, 'horizontal','k^', 'linestyle','none', 'Markeredgecolor', 'k', 'MarkerFaceColor',[0.4941    0.1843    0.5569], 'MarkerSize', 6)
+hold on
+errorbar(e_data(1:10),E_lat_inst_array_if(:,  2),error(1:10)./1000,'horizontal',  'kd', 'linestyle','none',  'Markeredgecolor', 'k', 'MarkerFaceColor', [1.0000   ,0.4118   ,0.1608],'MarkerSize', 6)
+errorbar( e_data(1:10),Etl_if(:, 2),error(1:10)./1000,'horizontal', 'kp', 'linestyle','none','MarkerSize', 6)
+plot([0, 3], [0,3], 'k--')
+legend('E_{wfvert}', 'E_{wflat}', 'E_{tl}', '1:1')
+%sum(Etot(i, :, j), 'all', 'omitnan');
+xlabel('Channel averaged erosion rate (mm/yr)')
+ylabel('E_{tl}, E_{wfvert}, E_{wflat} (mm/yr)')
+xlim([0, .4])
+ylim([0,2.2])
+%% good fig but just combined model
+figure
+
+%h = tiledlayout(2,1, 'TileSpacing', 'tight', 'Padding', 'compact');
+%nexttile
+%box on
+%fitobj=fitlm(e_data(1:10), Esite_point(1:10, 3), "Exclude",8)
+%plot([0, 2], [fitobj.Coefficients{1, 'Estimate'}, 2*fitobj.Coefficients{2, 'Estimate'}+fitobj.Coefficients{1, 'Estimate'}])
+
+%errorbar(Esite_point(1:5, 3), e_data(1:5), error(1:5)./1000, 'k-','LineStyle','none')
+mask=[true, true, true, true, true, true, true, false, true, true]
+[rho, p]=corr(e_data(mask), Esite_point(mask, 3))
+%hold on
+
+errorbar( e_data(1:5), Esite_point_wfonly(1:5, 3),error(1:5)./1000,'horizontal','ks', 'markerFaceColor', [0.4118    0.7804    0.9412],'LineStyle','none', 'MarkerSize', 6, 'Markeredgecolor', 'k')
+hold on
+errorbar(e_data(6:10),Esite_point(6:10, 3), error(6:10)./1000,'horizontal','ko', 'markerFaceColor', [0.8118    0.4118    0.7059], 'LineStyle','none', 'MarkerSize', 6, 'Markeredgecolor', 'k')
+plot([0, 1], [0,1],  'k--')
+plot([0, 1], [0,5],  ':', Color=[0.4 0.4, 0.4])
+plot([0, 1], [0,(1/5)],  '-.', Color=[0.4, 0.4, 0.4])
+hold on
+
+xlabel('Channel averaged erosion rate (mm/yr)')
+ylabel('Combined model prediction (mm/yr)')
+legend('MFK', 'Dinkey Creek', '1:1', '1:5', '5:1')
+%ylabel('Combined model prediction (mm/yr)')
+xlim([0,0.8])
+ylim([0, .8])
+%box off
+
+% nexttile
+% 
+% errorbar(e_data(1:10),Etot(:, 1, 3),error(1:10)./1000, 'horizontal','k^', 'linestyle','none', 'Markeredgecolor', 'k', 'MarkerFaceColor',[0.4941    0.1843    0.5569], 'MarkerSize', 6)
 % hold on
-% %xlim([0,10])
-% plot([1,2,4,8], Esite_norm8, '-o')
-hold off
-xlim([0,10])
+% errorbar(e_data(1:10),Etot(:, 2, 3),error(1:10)./1000,'horizontal',  'kd', 'linestyle','none',  'Markeredgecolor', 'k', 'MarkerFaceColor', [1.0000   ,0.4118   ,0.1608],'MarkerSize', 6)
+% errorbar( e_data(1:10),Etot(:, 3, 3),error(1:10)./1000,'horizontal', 'kp', 'linestyle','none','MarkerSize', 6)
+% %plot([0, 3], [0,3], 'k--')
+% legend('E_{wfvert}', 'E_{wflat}', 'E_{tl}', '1:1')
+% %sum(Etot(i, :, j), 'all', 'omitnan');
+% xlabel('Channel averaged erosion rate (mm/yr)')
+% ylabel('E_{tl}, E_{wfvert}, E_{wflat} (mm/yr)')
+% xlim([0, .4])
+% ylim([0,0.5])
+%% fig with combined, tl, and wf
+Esitegood=Esite_point(1:10, 3)<5;
+[rho, pval]=corr(e_data(Esitegood), Esite_point(Esitegood, 3))
+[rho, pval]=corr(e_data(Esitegood), E_vert_inst_array_if(Esitegood, 3)+E_lat_inst_array_if(Esitegood, 3))
+[rho, pval]=corr(e_data(Esitegood), Etl_ifnowf(Esitegood, 3))
+edata_fit=e_data(Esitegood);
+Esite_fit=Esite_point(Esitegood, 3);
+figure
+fit1=fitlm(edata_fit,  Etl_ifnowf(Esitegood, 3))
+h = tiledlayout(3, 1, 'TileSpacing', 'tight', 'Padding', 'compact');
+%nexttile
+%box on
+%fitobj=fitlm(e_data(1:10), Esite_point(1:10, 3), "Exclude",8)
+%plot([0, 2], [fitobj.Coefficients{1, 'Estimate'}, 2*fitobj.Coefficients{2, 'Estimate'}+fitobj.Coefficients{1, 'Estimate'}])
 
-legend(' high qs d50=10cm', ' low qs d50=3cm','Location','northwest')
-
-xlabel('number of drops')
-ylabel('relative erosion of waterfalls')
-%save('chan_relief_constant_3cm_8drps_lowsed.mat', 'Esite_norm8')
-
-%% combined with wf freqx norm erosion rate
-norm_e=[2.164705882
-0.921176471
-3.282352941
-1.432258065
-5.483870968
-2.152941176
-5.164705882
-1.525806452
-3.225806452
-3.419354839];
-
-wf_f=[8
-2
-9
-2
-7
-7
-8
-4
-9
-4];
-
-% cs=['#d50000'
-% '#ffdc00',
-% '#00e6a9',
-% '#a900e6',
-% '#fb8700',
-% '#383fe6',
-% '#fe006e',
-% '#77b700',
-% '#83aeff',
-% '#dcff00'];
-cs=['blue'
-    'blue'
-    'blue'
-    'orange'
-    'orange'
-    'blue',
-    'blue',
-    'orange',
-    'orange',
-    'orange'
-    ];
-map = sscanf(cs','#%2x%2x%2x',[3,size(cs,1)]).' / 255;
-dh1=[1.785714286
-6.9
-2.2
-0.9
-5.25
-1.5
-0.7
-0.9
-7.18
-4.2
-];
-wf_rel=wf_f.*dh1;
-figure 
-
-plot([1,2,4,8], Esite_norm_dink, '-o', 'blue')
+%errorbar(Esite_point(1:5, 3), e_data(1:5), error(1:5)./1000, 'k-','LineStyle','none')
+%hold on
+nexttile
+errorbar( e_data(1:5), Esite_point(1:5, 3),error(1:5)./1000,'horizontal','ks', 'markerFaceColor', [0.4118    0.7804    0.9412],'LineStyle','none', 'MarkerSize', 6, 'Markeredgecolor', 'k')
 hold on
-plot([1,2,4,8], Esite_norm_kaw, '-o', 'orange')
+errorbar(e_data(6:10),Esite_point(6:10, 3), error(6:10)./1000,'horizontal','ko', 'markerFaceColor', [0.8118    0.4118    0.7059], 'LineStyle','none', 'MarkerSize', 6, 'Markeredgecolor', 'k')
+plot([0, 1], [0,1],  'k--')
+plot([0, 1], [0,5],  ':', Color=[0.4 0.4, 0.4])
+plot([0, 1], [0,(1/5)],  '-.', Color=[0.4, 0.4, 0.4])
+hold on
+
+xlabel('Channel averaged erosion rate (mm/yr)')
+ylabel('Combined model prediction (mm/yr)')
+%legend('MFK', 'Dinkey Creek', '1:1', '1:5', '5:1')
+%ylabel('Combined model prediction (mm/yr)')
+xlim([0,0.4])
+ylim([0, 7])
+
+
+nexttile
+errorbar( e_data(1:5), (E_vert_inst_array_if(1:5, 3)+E_lat_inst_array_if(1:5, 3)),error(1:5)./1000,'horizontal','ks', 'markerFaceColor', [0.4118    0.7804    0.9412],'LineStyle','none', 'MarkerSize', 6, 'Markeredgecolor', 'k')
+hold on
+errorbar(e_data(6:10),(E_vert_inst_array_if(6:10, 3)+E_lat_inst_array_if(6:10, 3)), error(6:10)./1000,'horizontal','ko', 'markerFaceColor', [0.8118    0.4118    0.7059], 'LineStyle','none', 'MarkerSize', 6, 'Markeredgecolor', 'k')
+plot([0, 1], [0,1],  'k--')
+plot([0, 1], [0,5],  ':', Color=[0.4 0.4, 0.4])
+plot([0, 1], [0,(1/5)],  '-.', Color=[0.4, 0.4, 0.4])
+hold on
+
+xlabel('Channel averaged erosion rate (mm/yr)')
+ylabel('Plunge-pool erosion perdiction (mm/yr)')
+legend('MFK', 'Dinkey Creek', '1:1', '1:5', '5:1')
+%ylabel('Combined model prediction (mm/yr)')
+xlim([0,0.4])
+%ylim([0, 10])
+
+nexttile
+errorbar( e_data(1:5), Etl_ifnowf(1:5,3),error(1:5)./1000,'horizontal','ks', 'markerFaceColor', [0.4118    0.7804    0.9412],'LineStyle','none', 'MarkerSize', 6, 'Markeredgecolor', 'k')
+hold on
+errorbar(e_data(6:10),Etl_ifnowf(6:10, 3), error(6:10)./1000,'horizontal','ko', 'markerFaceColor', [0.8118    0.4118    0.7059], 'LineStyle','none', 'MarkerSize', 6, 'Markeredgecolor', 'k')
+plot([0, 1], [0,1],  'k--')
+plot([0, 1], [0,5],  ':', Color=[0.4 0.4, 0.4])
+plot([0, 1], [0,(1/5)],  '-.', Color=[0.4, 0.4, 0.4])
+hold on
+
+xlabel('Channel averaged erosion rate (mm/yr)')
+ylabel('Total load prediction (mm/yr)')
+%legend('MFK', 'Dinkey Creek', '1:1', '1:5', '5:1')
+%ylabel('Combined model prediction (mm/yr)')
+xlim([0,0.4])
+%ylim([0, 0.4])
+%box off
+
+% nexttile
+% 
+% errorbar(e_data(1:10),Etot(:, 1, 3),error(1:10)./1000, 'horizontal','k^', 'linestyle','none', 'Markeredgecolor', 'k', 'MarkerFaceColor',[0.4941    0.1843    0.5569], 'MarkerSize', 6)
 % hold on
-% plot([1,2,4,8], Esite_norm7, '-o')
-% hold on
-% %xlim([0,10])
-% plot([1,2,4,8], Esite_norm8, '-o')
-% hold on
-%c=dh1;
-c=1:10
-scatter(wf_f, norm_e,60, c, 'filled', 'MarkerEdgeColor', 'black')
-hold off
-colorbar
-colormap(map)
-legend(' high qs d50=10cm', 'high qs d50=3cm', ' low qs d50=10cm', ' low qs d50=3cm','Location','northwest')
-
-xlabel('number of drops')
-ylabel('relative erosion of waterfalls')
-
-
-xlim([0, 10])
-ylim([0, 6])
-%% 
-%clc, close all, clear all
-%% load parameters
-load('E:\wf_modeling\wf_parameters_model6_higher_drops.mat')
-%load('E:\sitewide_parameters.mat')
-Qg_k=[28.5716512, 145.9447872, 195.3292864, 1322.734362, 2153];%5486];
-Ifyearly=[0.002191781, 0.002191781, 0.000438356, 0.001753425, 0.000219178]; %used to average out the discharges
-If_sed=[1,2, 5, 10, 25];
-
-Qg_d=[28.31, 108.2834432, 274.1915744, 295.4291744, 707.906848, 1400];%834.4682854];%
-Q_gage =[Qg_k
-    Qg_k
-    Qg_k
-    Qg_k
-    Qg_k];
-Reach_len=[250
-250
-250
-250
-250
-];
-Reach_rel=20*[1
-1
-1
-1
-1
-];
-S=[.08
-.02
-.02
-.02
-.02
-];
-S_brink=0.08*[1
-1
-1
-1
-1
-];
-W=12*[1
-    1
-    1
-    1
-    1];
-
-da=218120000*[1
-    1
-    1
-    1
-    1];
-A_gagetot=1082620000*[1, 1, 1, 1, 1];
-E_dtot=35*[1, 1, 1, 1, 1];
-
-%lengthsed=8;
-
-
-%E_perwf=NaN(length(da), length(Q_gage), length(Names), lengthsed);
-d_all=.01*3*[1
-    1
-    1
-    1
-    1];%m% 10.2 is mfk, 3.1 is dink
-
-Names={'No Drops'
-'1 drop'
-'2 drops'
-'4 drops'
-'8 drops'
-};
-E_vert_inst_arrayd=NaN(length(Wlip(:, 1)), length(Names), length(Qg_k));
-E_lat_inst_arrayd=NaN(length(Wlip(:, 1)), length(Names), length(Qg_k));
-E_lat_inst_arrayd=NaN(length(Wlip(:, 1)), length(Names), length(Qg_k));
-E_vert_inst_array=NaN(length(Wlip(:, 1)), length(Names), length(Qg_k));
-Etl_brink_d=NaN(length(Wlip(:, 1)), length(Names), length(Qg_k));
-
-Etl_distd=NaN(length(Wlip(:, 1)), length(Names), length(Qg_k));
-Qflood=NaN(length(da), length(Names), length(Qg_k));
-
-Names=categorical(Names);
-%% Setting up function parameters - Here we want to calculate erosion at each waterfall and then 
-
-for ii=1:length(Names) %which site
-    
-    Width = W(ii); %channel width upstream of the waterfall (m) [measure in Google Earth]
-    
-    A = da(ii); %draingae area of waterfall (m2
-    Slope = S(ii); %slope of channel average
-    S_poold = S_brink(ii); % Slope leading into the lip
-    E_d=E_dtot(ii);
-    A_gage=A_gagetot(ii);
-
-    D=d_all(ii);
-    
-    
-    
-    %Discharges for 2, 5, 10, 50 and 100 yr floods
-    h_brd =4.3; %pool depth to bedrock (m) [we don't know how deep the pools actually are, so better
-                %just to keep this set at a constant value]
-    H_dropd =9.1; %waterfall drop height (m) [as with above, for a first order appproximation 
-                    %we can just hold waterfall drop height constant between
-                    %reaches]
-    r_poold = 4.75; %Pool radius (m)
-    
-    If=.01; %Intermittancy factor
-    for iii=1:length(Wlip(~isnan(Wlip(:,ii)))) %Which waterfall
-        W_brink=Wlip(iii,ii); %Width at wf lip
-        h_brd =depth(iii,ii); %pool depth to bedrock (m) [we don't know how deep the pools actually are, so better
-                %just to keep this set at a constant value]
-        H_dropd =height(iii,ii);%9.1; %waterfall drop height (m) [as with above, for a first order appproximation 
-                    %we can just hold waterfall drop height constant between
-                    %reaches]
-        r_poold =poolrad(iii,ii); %Pool radius (m)
-% 
-
-        
-        
-        for n=1:length(Qg_k) %which discharge
-            Qg=Q_gage(ii, n);
-            If_s=If_sed(n);
-            [E_vert_inst_arrayd(iii,  ii, n),  E_lat_inst_arrayd(iii,  ii, n), ...
-                Etl_distd(iii, ii, n), Etl_brink_d(iii, ii, n),  H(iii,  ii, n), Hbrink(iii,  ii, n), If, Qflood(iii, ii, n),  r_jet(iii, ii, n)]=...
-                all_erosion_dinkey(Slope, S_poold, Width, W_brink, Qg, If, h_brd, H_dropd, r_poold, A, A_gage, E_d, D, If_s);
-        end
-%         E_tl_avg_perdischarge=sum(Drat_d.*Etl_distd, 2 );
-%         E_vert_perdischarge=sum(Drat_d.*E_vert_inst_arrayd, 2 );
-%         E_tl_brink_perdischarge=sum(Drat_d.*Etl_brink_d, 2);
-%         E_lat_perdischarge=sum(Drat_d.*E_lat_inst_arrayd, 2);
-%         E_all_perdischarge=[transpose(E_vert_perdischarge)
-%         transpose(E_lat_perdischarge)
-%         transpose(E_tl_brink_perdischarge)
-%         transpose(E_tl_avg_perdischarge)];
-    end
-
-    if ii==1
-        if isnan(Wlip(1,1))
-    
-            for n=1:length(Qg_k) %which discharge
-                Qg=Qg_k(n);
-                If_s=If_sed(n);
-                [Etl_distd(1, ii, n),   H(1,  ii, n), Qflood(1, ii, n)]=...
-                    only_tl_formodeling(Slope,  Width,  Qg, If,  A, A_gage, E_d, D, If_s);
-            end
-    
-        end
-    end
-end
-
-%% integrating across discharges
-E_vert_inst_array_if=E_vert_inst_arrayd;
-E_lat_inst_array_if=E_lat_inst_arrayd;
-Etl_if=Etl_distd;
-Etl_brink_if=Etl_brink_d;
-for ijk=1:length(E_vert_inst_arrayd(1,1, :))
-    E_vert_inst_array_if( :, :, ijk)=E_vert_inst_arrayd(:, :, ijk).*Ifyearly(ijk);
-    E_lat_inst_array_if(:, :, ijk)=E_lat_inst_arrayd(:, :, ijk).*Ifyearly(ijk);
-    Etl_brink_if(:, :, ijk)=Etl_brink_d(:, :, ijk).*Ifyearly(ijk);
-    Etl_if(:, :, ijk)=Etl_distd(:, :, ijk).*Ifyearly(ijk);
-end
-E_vert_tot_perwf=sum(E_vert_inst_array_if, 3, 'omitnan');
-E_lat_tot_perwf=sum(E_lat_inst_array_if, 3, 'omitnan');
-Etl_brink_tot_perwf=sum(Etl_brink_if, 3, 'omitnan');
-Etl_tot_perwf=sum(Etl_if, 3, 'omitnan');
-Qcat = categorical(Qflood);
-Dcat=categorical(D_50);
-%Qcat = reordercats(Qcat,Q_gage);
-Ecat={'WF Vert Erosion', 'WF Lateral Erosion',  'Total Load Avg Channel'};
-Ecat=categorical(Ecat);
-%% FIgures for each type of erosion (length(da), length(Q_gage), length(Names));
-% Qcat = categorical(Qflood);
-% Dcat=categorical(D);
-% %Qcat = reordercats(Qcat,Q_gage);
-% Ecat={'WF Vert Erosion', 'WF Lateral Erosion', 'Total Load @Brink', 'Total Load Avg Channel'};
-% Ecat=categorical(Ecat);
-% 
-% % WF Vertical
-% figure
-% bar( E_vert_inst_arrayd(:, :, 1), 'grouped')
-% title('WF Vert Erosion by and flood size')
-% xlabel(' Waterfall #')
-% ylabel('Erosion without intermittancy')
-% legend('Yearly', '2 Year', '5 Year', '10 Year', '50 Year', '100 Year', 'Location','northwest')
-% 
-% figure
-% bar( E_lat_inst_arrayd(:, :, 1), 'grouped')
-% title('WF Lat Erosion by grain size and flood size')
-% xlabel('Waterfall #')
-% ylabel('Erosion without intermittancy')
-% legend('Yearly', '2 Year', '5 Year', '10 Year', '50 Year', '100 Year', 'Location','northwest')
-% 
-% figure
-% bar(Dcat, Etl_brink_d, 'grouped')
-% title('Total Load Brink Erosion by grain size and flood size')
-% xlabel('Grain Diameter (m)')
-% ylabel('Erosion without intermittancy')
-% legend('Yearly', '2 Year', '5 Year', '10 Year', '50 Year', '100 Year', 'Location','northwest')
-% 
-% 
-% 
-% 
-% %Total Load Stream Average
-% figure
-% bar( Etl_distd(:, :, 1), 'grouped')
-% title('Total Load Erosion by flood size')
-% xlabel(' Grain Diameter (m)')
-% ylabel('Erosion without intermittancy')
-% legend('Yearly', '2 Year', '5 Year', '10 Year', '50 Year', '100 Year', 'Location','northwest')
-% % %% Figures per Discharge across grain sizes
-% % 
-% % E_tl_avg_perdischarge=sum(Drat_d.*Etl_distd, 2 );
-% % E_vert_perdischarge=sum(Drat_d.*E_vert_inst_arrayd, 2 );
-% % E_tl_brink_perdischarge=sum(Drat_d.*Etl_brink_d, 2);
-% % E_lat_perdischarge=sum(Drat_d.*E_lat_inst_arrayd, 2);
-% % E_all_perdischarge=[transpose(E_vert_perdischarge)
-% %     transpose(E_lat_perdischarge)
-% %     transpose(E_tl_brink_perdischarge)
-% %     transpose(E_tl_avg_perdischarge)];
-% % figure
-% % bar(Qcat, E_all_perdischarge)
-% % legend('WF Vert Erosion', 'WF Lateral Erosion', 'Total Load @Brink', 'Total Load Avg Channel', 'location', 'northoutside')
-% % xlabel('Flood DIscharge (m^3/sec')
-% % ylabel('Erosion (no intermitancy)')
-% % title('Erosion per flood type, across grain sizes')
-% % 
-% % %% Applying Intermittancy to flood levels
-% % E_vert_tot=sum(E_vert_perdischarge.*Ifyearly, 'all');
-% % E_lat_tot=sum(E_lat_perdischarge.*Ifyearly, 'all');
-% % E_tl_avg_tot=sum(E_tl_avg_perdischarge.*Ifyearly, 'all');
-% % E_tl_brink_tot=sum(E_tl_brink_perdischarge.*Ifyearly, 'all');
-% % E_all=[E_vert_tot ...
-% %     E_lat_tot ...
-% %     E_tl_brink_tot ...
-% %     E_tl_avg_tot];
-% % figure
-% % bar(Ecat, E_all)
-% % ylabel('Erosion (mm/yr)')
-% % title('MFK 11')
-%% Making Figures per wf
-for i=1:length(Names)
-    barstuff=[E_vert_tot_perwf(:,i), E_lat_tot_perwf(:, i),  Etl_tot_perwf(:,i)];
-    
-    figure
-    bar(barstuff, 'grouped')
-    %xticklabels(1:7)
-    legend(Ecat)
-    title(Names(i))
-    hold off
-end
-%hold on
-%bar(log(D), E_lat_inst_arrayd, 'grouped')
-%hold off
-%% Combining erosion to be per site
-Etot=NaN(length(Names), 3);%Column 1 is waterfall vert, Column 2 is watervall Lat, column 3 is total load
-wfvert_weighted=NaN(length(Wlip(:,1)), length(Names) ); %these arrays contain erosion rates for each site multiplied by the distance along which they apply
-wflat_weighted=NaN(length(Wlip(:,1)), length(Names) );
-tl_weighted=NaN(length(Wlip(:,1)), length(Names) );
-length_tl=NaN(length(Names), 1);
-for i=1:length(Names)
-    length_tl(i)=Reach_len(i)-sum(poolrad(:,i), 'omitnan');
-
-
-        
-
-
-    for j=1:length(Wlip(:,1))
-        wfvert_weighted(j,i)=E_vert_tot_perwf(j,i)*poolrad(j,i)*2;
-        wflat_weighted(j,i)=E_lat_tot_perwf(j,i)*depth(j,i);
-        tl_weighted(j,i)=Etl_tot_perwf(j,i)*(length_tl(i));
-            
-
-    end
-    Etot(i, 1)=sum(wfvert_weighted(:,i), 'all', 'omitnan');
-    Etot(i, 2)=sum(wflat_weighted(:,i), 'all', 'omitnan');
-    Etot(i,3)=tl_weighted(1,i);
-end
-
-
-
-Ecat1=['WF Vert', 'WF Lat', "Total Load"];
-Ecat1=categorical(Ecat1);
-
-
-figure
-bar(Etot, 'grouped')
-xticklabels(Names)
-
-legend(Ecat1)
-title('Erosion per site')
-hold off
-%% combining for sitewide predictions
-Esite=NaN(length(Names), 1);
-for i=1:length(Names)
-    Esite(i)=sum(Etot(i, :), 'all', 'omitnan');
-end
-
-    
-figure
-bar(Esite)
-xticklabels(Names)
-ylabel('total erosion')
-%% combining for sitewide predictions
-Esite_point=NaN(length(Names), 1);
-for i=1:length(Names)
-    Esite_point(i)=Esite(i)/length_ch(i);
-end
-
-    
-figure
-bar(Esite)
-xticklabels(Names)
-ylabel('total erosion')
-
-%%
-%normalized erosion rates
-Esite_norm8=Esite(2:5)/Esite(1);
-figure
-plot([1,2,4,8], Esite_norm, '-o')
-hold on
-plot([1,2,4,8], Esite_norm2, '-o')
-hold on
-plot([1,2,4,8], Esite_norm7, '-o')
-hold on
-%xlim([0,10])
-plot([1,2,4,8], Esite_norm8, '-o')
-hold off
-xlim([0,10])
-
-legend(' high qs d50=10cm', 'high qs d50=3cm', ' low qs d50=10cm', ' low qs d50=3cm','Location','northwest')
-
-xlabel('number of drops')
-ylabel('relative erosion of waterfalls')
-%save('chan_relief_constant_3cm_8drps_lowsed.mat', 'Esite_norm8')
-
-%% combined with wf freqx norm erosion rate
-norm_e=[2.164705882
-0.921176471
-3.282352941
-1.432258065
-5.483870968
-2.152941176
-5.164705882
-1.525806452
-3.225806452
-3.419354839];
-
-wf_f=[8
-2
-9
-2
-7
-7
-8
-4
-9
-4];
-
-cs=['#d50000'
-'#ffdc00',
-'#00e6a9',
-'#a900e6',
-'#fb8700',
-'#383fe6',
-'#fe006e',
-'#77b700',
-'#83aeff',
-'#dcff00'];
-map = sscanf(cs','#%2x%2x%2x',[3,size(cs,1)]).' / 255;
-c=1:10;
-dh1=[1.785714286
-6.9
-2.2
-0.9
-5.25
-1.5
-0.7
-0.9
-7.18
-4.2
-];
-wf_rel=wf_f.*dh1;
-figure 
-colormap("pink")
-%plot([1,2,4,8], Esite_norm, '-o')
-%hold on
-%plot([1,2,4,8], Esite_norm2, '-o')
-%hold on
-%plot([1,2,4,8], Esite_norm7, '-o')
-%hold on
-%%xlim([0,10])
-%plot([1,2,4,8], Esite_norm8, '-o')
-%hold on
-%%c=dh1;
-%c=1:10
-scatter(wf_f, norm_e,60, c, 'filled', 'MarkerEdgeColor', 'black')
-hold off
-colorbar
-%colormap(map)
-legend(' high qs d50=10cm', 'high qs d50=3cm', ' low qs d50=10cm', ' low qs d50=3cm','Location','northwest')
-
-xlabel('number of drops')
-ylabel('relative erosion of waterfalls')
-
-
-xlim([0, 10])
-ylim([0, 6])
-
+% errorbar(e_data(1:10),Etot(:, 2, 3),error(1:10)./1000,'horizontal',  'kd', 'linestyle','none',  'Markeredgecolor', 'k', 'MarkerFaceColor', [1.0000   ,0.4118   ,0.1608],'MarkerSize', 6)
+% errorbar( e_data(1:10),Etot(:, 3, 3),error(1:10)./1000,'horizontal', 'kp', 'linestyle','none','MarkerSize', 6)
+% %plot([0, 3], [0,3], 'k--')
+% legend('E_{wfvert}', 'E_{wflat}', 'E_{tl}', '1:1')
+% %sum(Etot(i, :, j), 'all', 'omitnan');
+% xlabel('Channel averaged erosion rate (mm/yr)')
+% ylabel('E_{tl}, E_{wfvert}, E_{wflat} (mm/yr)')
+% xlim([0, .4])
+% ylim([0,0.5])
