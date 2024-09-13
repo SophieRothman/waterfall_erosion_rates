@@ -96,6 +96,14 @@ width_equ  = readmatrix('D:\Users\srothman\Documents\field_materials\width_power
 % length_ch=mx1 array of channel length for each reach (m)
 % S_brink=S_tot%
 
+%OUTPUTS
+%Esite_point=Combined process model results (m/million years)
+%Esite_point_wfonly=Combined process model results (m/million years) with
+%planar channel erosion set to zero.
+%Etl_if_nowf=Planar-channel, total load only erosion rate prediction
+%(m/mnillion years) 
+
+
 %% making
 
 
