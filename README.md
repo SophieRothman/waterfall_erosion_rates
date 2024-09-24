@@ -10,4 +10,4 @@ The following are codes are called by [combined_processes_model_wrapper_forsuppl
 [total_load_code_fct_public.m]=Calculates erosion rates in a planar channel due to abrasion following Lamb et al., 2008. Written by Michael P. Lamb and editted by Joel S. Scheingross. 
 [c_from_Qs_fct_tw.m]=Calculates the concentration of sediment around plunge pool boundaries following Scheingross & Lamb, 2016.
 
-Additionally, 
+Additionally, the excell spreadsheet contains the supporting dataset for “Waterfalls alter reach-scale fluvial erosion rates: Evidence from field data and process modeling”, including waterfall, reach-scale and basin-averaged metrics, erosion rates, and pebble count data.
